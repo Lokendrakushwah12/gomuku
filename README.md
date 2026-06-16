@@ -5,6 +5,11 @@ live spectators, synthesized sound, and a persistent win/loss record. No
 backend, no database, no API keys — the realtime layer is **WebRTC peer-to-peer**
 via [PeerJS](https://peerjs.com/).
 
+<img width="1512" height="857" alt="image" src="https://github.com/user-attachments/assets/507f0fc0-d428-4d4b-8863-aaa86d82a81b" />
+
+<img width="1512" height="856" alt="image" src="https://github.com/user-attachments/assets/95230a4b-6762-4ea0-86e2-e25e4f3aa1df" />
+
+
 > Black always opens; first to get five stones in a row (horizontal, vertical,
 > or diagonal) wins. This is freestyle Gomoku — no opening restrictions and
 > overlines (six or more) also count.
