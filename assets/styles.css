@@ -20,6 +20,7 @@
 html, body { margin: 0; height: 100%; }
 body {
   background: radial-gradient(120% 90% at 50% -10%, #211b15 0%, var(--lacquer) 55%, #100d0a 100%);
+  background-attachment: fixed;
   color: var(--paper);
   font-family: "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -62,7 +63,7 @@ body {
 .btn-ghost { background: rgba(239,231,214,.07); color: var(--paper); border: 1px solid var(--line); }
 .btn-ghost:hover { background: rgba(239,231,214,.12); }
 
-.level-row { display: flex; gap: 10px; }
+.level-row { display: flex; flex-direction: column; gap: 10px; }
 .level-row .btn { padding: 12px 0; }
 
 .join-row { display: flex; gap: 10px; }
