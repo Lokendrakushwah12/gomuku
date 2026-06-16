@@ -9,12 +9,14 @@
   const colorName = GEngine.colorName;
 
   // -- screen state -----------------------------------------------------------
-  let mode = null;          // 'online' | 'local'
+  let mode = null;          // 'online' | 'local' | 'computer'
   let role = null;          // online seat: 'black' | 'white' | 'spectator'
   let state = null;         // current state we render from
   let prev = null;          // previous state, for sound + transitions
   let banked = false;       // lifetime stat counted for this finished game?
   let shareLink = "";
+  let aiLevel = null;       // 'easy' | 'medium' | 'hard' when playing the computer
+  let aiThinking = false;   // guards against firing two computer moves at once
 
   // -- DOM --------------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
@@ -23,6 +25,7 @@
     board: $("board"), boardbox: $("boardbox"),
     createBtn: $("create-btn"), joinBtn: $("join-btn"), joinInput: $("join-input"),
     localBtn: $("local-btn"), lobbyErr: $("lobby-err"),
+    levelBtns: Array.prototype.slice.call(document.querySelectorAll("[data-level]")),
     turnCard: $("turn-card"), turnStone: $("turn-stone"), turnLabel: $("turn-label"), turnWho: $("turn-who"),
     statusMsg: $("status-msg"),
     scoreBlack: $("score-black"), scoreWhite: $("score-white"),
@@ -46,6 +49,7 @@
   function canMove() {
     if (!state || state.status !== "playing") return false;
     if (mode === "local") return true;
+    if (mode === "computer") return state.turn === 1; // human plays Black
     if (role === "black") return state.turn === 1;
     if (role === "white") return state.turn === 2;
     return false;
@@ -114,13 +118,20 @@
       else if (state.status === "draw") msg = "Board full — a draw";
       else if (role === "spectator") msg = "Spectating";
       el.turnLabel.textContent = (role !== "spectator" && state.status === "playing") ? (canMove() ? "Your turn" : "Their turn") : "Turn";
+    } else if (mode === "computer") {
+      if (state.status === "won") msg = state.winner === 1 ? "You win" : "Computer wins";
+      else if (state.status === "draw") msg = "Board full — a draw";
+      else msg = state.turn === 1 ? "" : "Computer is thinking";
+      el.turnLabel.textContent = state.status === "playing" ? (state.turn === 1 ? "Your turn" : "Computer") : "Turn";
     } else {
       if (state.status === "won") msg = (state.winner === 1 ? "Black" : "White") + " wins";
       else if (state.status === "draw") msg = "Board full — a draw";
       el.turnLabel.textContent = "Turn";
     }
     el.statusMsg.textContent = msg;
-    el.statusMsg.classList.toggle("waiting-dots", mode === "online" && state.status === "waiting");
+    el.statusMsg.classList.toggle("waiting-dots",
+      (mode === "online" && state.status === "waiting") ||
+      (mode === "computer" && state.status === "playing" && state.turn === 2));
 
     if (mode === "online") {
       el.roomPanel.classList.remove("hidden");
@@ -134,6 +145,17 @@
     const finished = state.status === "won" || state.status === "draw";
     const canRematch = finished && (mode === "local" || role !== "spectator");
     el.rematchBtn.classList.toggle("hidden", !canRematch);
+
+    // Online: surface whose rematch we're waiting on.
+    let rematchLabel = "Rematch", nudging = false;
+    if (canRematch && mode === "online" && role !== "spectator") {
+      const opp = role === "black" ? "white" : "black";
+      const iWant = state.rematch[role], theyWant = state.rematch[opp];
+      if (theyWant && !iWant) { rematchLabel = "Accept rematch"; nudging = true; }
+      else if (iWant && !theyWant) { rematchLabel = "Waiting for opponent…"; }
+    }
+    el.rematchBtn.textContent = rematchLabel;
+    el.rematchBtn.classList.toggle("nudge", nudging);
   }
 
   function render() { renderBoard(); renderSide(); }
@@ -146,6 +168,11 @@
       if (s.status === "won" && prev.status !== "won") GSound.win();
       else if (s.status === "draw" && prev.status !== "draw") GSound.draw();
       if (!prev.players.white && s.players.white) GSound.join();
+      // opponent just asked for a rematch (online, and it isn't us)
+      if (mode === "online" && role && role !== "spectator") {
+        const opp = role === "black" ? "white" : "black";
+        if (s.rematch[opp] && !prev.rematch[opp]) { GSound.join(); toast("Your opponent wants a rematch"); }
+      }
       // a fresh game started after a finished one
       if ((prev.status === "won" || prev.status === "draw") && (s.status === "playing" || s.status === "waiting")) banked = false;
     }
@@ -157,12 +184,13 @@
   function bankResult(s) {
     if (banked) return;
     if (s.status !== "won" && s.status !== "draw") return;
-    const iAmPlayer = (mode === "local") || (mode === "online" && role !== "spectator");
+    const iAmPlayer = (mode === "local") || (mode === "computer") || (mode === "online" && role !== "spectator");
     if (!iAmPlayer) { banked = true; return; }
     banked = true;
     if (mode === "local") return; // local hot-seat doesn't touch lifetime record
+    const myColor = mode === "computer" ? "black" : role; // vs computer you are Black
     if (s.status === "draw") stats.d++;
-    else if (colorName(s.winner) === role) stats.w++;
+    else if (colorName(s.winner) === myColor) stats.w++;
     else stats.l++;
     saveStats(stats); renderStats();
   }
@@ -181,6 +209,26 @@
     mode = "local"; role = null; prev = null; banked = false;
     state = GEngine.emptyState(); state.status = "playing"; state.players.white = true;
     GSound.sweep(); enterGame();
+  }
+
+  function startComputer(level) {
+    mode = "computer"; role = null; aiLevel = level; aiThinking = false;
+    prev = null; banked = false;
+    state = GEngine.emptyState(); state.status = "playing"; state.players.white = true;
+    GSound.sweep(); enterGame();
+  }
+
+  // Let the computer (White) reply, after a short beat so it feels deliberate.
+  function aiPlay() {
+    if (mode !== "computer" || aiThinking) return;
+    if (!state || state.status !== "playing" || state.turn !== 2) return;
+    aiThinking = true;
+    setTimeout(function () {
+      aiThinking = false;
+      if (mode !== "computer" || !state || state.status !== "playing" || state.turn !== 2) return;
+      const idx = GAI.bestMove(state.board, 2, 1, aiLevel);
+      if (idx != null) { GEngine.place(state, idx, 2); onState(state); }
+    }, 420);
   }
 
   function wireNet() {
@@ -214,6 +262,7 @@
   function leave() {
     GNet.leave();
     mode = null; role = null; state = null; prev = null; banked = false;
+    aiLevel = null; aiThinking = false;
     el.game.classList.add("hidden"); el.lobby.classList.remove("hidden");
     el.joinInput.value = ""; lobbyErr("");
     // drop ?room= from the URL so a refresh doesn't auto-rejoin a dead room
@@ -227,7 +276,8 @@
       GSound.unlock();
       if (!canMove()) { GSound.deny(); return; }
       const idx = parseInt(t.getAttribute("data-idx"), 10);
-      if (mode === "local") { GEngine.place(state, idx, state.turn); onState(state); }
+      if (mode === "computer") { if (GEngine.place(state, idx, 1)) { onState(state); aiPlay(); } }
+      else if (mode === "local") { GEngine.place(state, idx, state.turn); onState(state); }
       else GNet.requestMove(idx);
     }
   });
@@ -237,7 +287,12 @@
   el.joinInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { GSound.unlock(); joinRoom(el.joinInput.value); } });
   el.joinInput.addEventListener("input", () => { el.joinInput.value = el.joinInput.value.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 5); });
   el.localBtn.addEventListener("click", () => { GSound.unlock(); startLocal(); });
-  el.rematchBtn.addEventListener("click", () => { GSound.unlock(); if (mode === "local") { GEngine.resetBoard(state, true); state.status = "playing"; GSound.sweep(); onState(state); } else GNet.requestRematch(); });
+  el.levelBtns.forEach((b) => b.addEventListener("click", () => { GSound.unlock(); startComputer(b.getAttribute("data-level")); }));
+  el.rematchBtn.addEventListener("click", () => {
+    GSound.unlock();
+    if (mode === "local" || mode === "computer") { GEngine.resetBoard(state, true); state.status = "playing"; GSound.sweep(); onState(state); }
+    else GNet.requestRematch();
+  });
   el.leaveBtn.addEventListener("click", () => { GSound.sweep(); leave(); });
   el.brand.addEventListener("click", () => { if (!el.game.classList.contains("hidden")) leave(); });
 

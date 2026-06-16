@@ -4,7 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>Gomoku — Five in a Row</title>
-  <meta name="description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, or pass the device back and forth." />
+  <meta name="description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, take on the computer, or pass the device back and forth." />
+
+  <!-- Social preview (Open Graph + Twitter) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Gomoku — Five in a Row" />
+  <meta property="og:description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, take on the computer, or pass the device back and forth." />
+  <meta property="og:image" content="assets/open.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Gomoku — Five in a Row" />
+  <meta name="twitter:description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, take on the computer, or pass the device back and forth." />
+  <meta name="twitter:image" content="assets/open.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -44,6 +55,16 @@
         <div class="join-row">
           <input id="join-input" maxlength="5" placeholder="A B C D E" autocomplete="off" spellcheck="false" />
           <button class="btn btn-primary" id="join-btn">Join</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Play the computer</h3>
+        <p>You play Black against the machine. Pick how hard it pushes back.</p>
+        <div class="level-row">
+          <button class="btn btn-ghost" data-level="easy">Easy</button>
+          <button class="btn btn-ghost" data-level="medium">Medium</button>
+          <button class="btn btn-ghost" data-level="hard">Hard</button>
         </div>
       </div>
 
@@ -115,6 +136,7 @@
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="src/sound.js"></script>
   <script src="src/engine.js"></script>
+  <script src="src/ai.js"></script>
   <script src="src/net.js"></script>
   <script src="src/ui.js"></script>
 </body>
