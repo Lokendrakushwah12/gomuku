@@ -1,4 +1,4 @@
-/* sound.js — all effects synthesized with the Web Audio API. No files. */
+/* sound.js - all effects synthesized with the Web Audio API. No files. */
 window.GSound = (function () {
   "use strict";
   let actx = null, muted = false;

@@ -14,14 +14,27 @@
   --paper:     #efe7d6;
   --paper-dim: #b9ac96;
   --line:      rgba(239,231,214,.10);
+  /* The button's decorative "ticket bracket" is just a flat middle with an
+     ornate cap on each end. Rather than one percentage clip-path (whose caps
+     would scale with button width), each cap is a fixed-width mask piece - see
+     .btn-clip - so every button gets identically sized end-caps. These two
+     vars hold the left/right cap silhouettes, sampled from the original shape. */
+  --cap-l: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%207.775%20100'%20preserveAspectRatio='none'%3E%3Cpath%20d='M7.775%200L7.294%209.3L5.85%2016.1L4.766%2019L3.337%2022.4L2.025%2026.5L1.107%2031L0.511%2036.3L0.143%2042L0.001%2050.9L0.275%2060.6L0.642%2065.2L1.2%2069.5L1.979%2073.3L3.305%2077.5L4.697%2080.9L5.427%2082.7L6.466%2086L7.16%2089.6L7.464%2092.4L7.656%2095.4L7.748%2098.4L7.761%20100L7.775%20100Z'/%3E%3C/svg%3E");
+  --cap-r: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%207.775%20100'%20preserveAspectRatio='none'%3E%3Cpath%20d='M0%200L0.481%209.3L1.925%2016.1L3.009%2019L4.438%2022.4L5.75%2026.5L6.668%2031L7.264%2036.3L7.632%2042L7.774%2050.9L7.5%2060.6L7.133%2065.2L6.575%2069.5L5.796%2073.3L4.47%2077.5L3.078%2080.9L2.348%2082.7L1.309%2086L0.615%2089.6L0.311%2092.4L0.119%2095.4L0.027%2098.4L0.014%20100L0%20100Z'/%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
+::selection { background: rgba(223, 99, 71, .28); color: var(--paper); }
+::-moz-selection { background: rgba(223, 99, 71, .28); color: var(--paper); }
+/* Most of the UI behaves like an app (no selecting), but the bits worth
+   copying - the room code and the code input - stay selectable. */
+.selectable, .room-code, .join-row input { user-select: text; -webkit-user-select: text; }
 html, body { margin: 0; height: 100%; }
 body {
   background: radial-gradient(120% 90% at 50% -10%, #211b15 0%, var(--lacquer) 55%, #100d0a 100%);
   background-attachment: fixed;
   color: var(--paper);
+  user-select: none; -webkit-user-select: none;
   font-family: "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100%;
@@ -56,15 +69,32 @@ body {
 .card h3 { font-family: "Marcellus", serif; font-weight: 400; font-size: 19px; margin: 0 0 4px; letter-spacing: .03em; }
 .card p { margin: 0 0 16px; color: var(--paper-dim); font-size: 13.5px; line-height: 1.5; }
 
-.btn { appearance: none; border: none; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 15px; border-radius: 12px; padding: 13px 20px; transition: transform .08s, filter .15s, background .15s; width: 100%; }
+.btn { appearance: none; border: none; cursor: pointer; font-family: "Marcellus", serif; font-weight: 400; letter-spacing: .04em; font-size: 16px; border-radius: 12px; padding: 13px 20px; transition: transform .08s, filter .15s, background .15s; width: 100%; user-select: none; -webkit-user-select: none; display: inline-flex; align-items: center; justify-content: center; }
 .btn:active { transform: translateY(1px) scale(.995); }
 .btn-primary { background: var(--cinnabar); color: #fff; box-shadow: 0 6px 18px rgba(194,74,48,.35); }
 .btn-primary:hover { filter: brightness(1.08); }
 .btn-ghost { background: rgba(239,231,214,.07); color: var(--paper); border: 1px solid var(--line); }
 .btn-ghost:hover { background: rgba(239,231,214,.12); }
 
-.level-row { display: flex; flex-direction: column; gap: 10px; }
+/* Bracket variant - fixed-width cap on each end, flat stretchy middle between.
+   Because the caps are sized in px (--cap), every button gets the same end-caps
+   regardless of width. Built with mask layers (left cap + right cap + a middle
+   rectangle, unioned), which also swallows borders/box-shadows - so we drop the
+   border and cast the primary shadow with a filter that follows the mask. */
+.btn-clip {
+  --cap: 12px;
+  border-radius: 0; border: none; padding: 14px calc(var(--cap) + 10px);
+  -webkit-mask: var(--cap-l) left center / var(--cap) 100% no-repeat, var(--cap-r) right center / var(--cap) 100% no-repeat, linear-gradient(#000, #000) center / calc(100% - 2 * var(--cap) + 2px) 100% no-repeat;
+  mask: var(--cap-l) left center / var(--cap) 100% no-repeat, var(--cap-r) right center / var(--cap) 100% no-repeat, linear-gradient(#000, #000) center / calc(100% - 2 * var(--cap) + 2px) 100% no-repeat;
+}
+.btn-clip.btn-primary { box-shadow: none; filter: drop-shadow(0 6px 14px rgba(194,74,48,.35)); }
+.btn-clip.btn-primary:hover { filter: drop-shadow(0 6px 14px rgba(194,74,48,.45)) brightness(1.08); }
+.btn-clip.btn-ghost { background: rgba(239,231,214,.09); }
+.btn-clip.btn-ghost:hover { background: rgba(239,231,214,.15); }
+
+.level-row { display: flex; flex-direction: column; }
 .level-row .btn { padding: 12px 0; }
+.level-row .btn + .btn { margin-top: 12px; }
 
 .join-row { display: flex; gap: 10px; }
 .join-row input { flex: 1; min-width: 0; font-family: "Space Mono", monospace; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; font-size: 17px; background: rgba(0,0,0,.28); border: 1px solid var(--line); color: var(--paper); border-radius: 12px; padding: 0 14px; text-align: center; }

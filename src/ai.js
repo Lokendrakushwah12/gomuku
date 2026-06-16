@@ -1,10 +1,10 @@
-/* ai.js — a self-contained Gomoku opponent. No DOM, no network: given a board
+/* ai.js - a self-contained Gomoku opponent. No DOM, no network: given a board
    it returns the index the computer should play. Three difficulties tune how
    far it looks and how often it plays the strongest move:
 
-     easy   — short sight, blunders often, weak on defence
-     medium — picks the best one-ply move (solid blocker + attacker)
-     hard   — one-ply scoring plus a look-ahead that anticipates the reply,
+     easy   - short sight, blunders often, weak on defence
+     medium - picks the best one-ply move (solid blocker + attacker)
+     hard   - one-ply scoring plus a look-ahead that anticipates the reply,
               always takes a win and always blocks an immediate loss
 
    Scoring works by, for a candidate cell, measuring the runs it would create
@@ -18,8 +18,8 @@ window.GAI = (function () {
 
   // Map a run of `len` same-colour stones with `ends` open extensions to a score.
   function shape(len, ends) {
-    if (len >= 5) return 1000000;          // five in a row — winning
-    if (ends === 0) return 0;              // walled in on both sides — dead
+    if (len >= 5) return 1000000;          // five in a row - winning
+    if (ends === 0) return 0;              // walled in on both sides - dead
     if (len === 4) return ends === 2 ? 200000 : 12000; // open four wins; closed four forces
     if (len === 3) return ends === 2 ? 8000 : 600;     // open three is a real threat
     if (len === 2) return ends === 2 ? 220 : 40;
@@ -46,7 +46,7 @@ window.GAI = (function () {
     return total;
   }
 
-  // Empty cells within `radius` of any stone — the only moves worth weighing.
+  // Empty cells within `radius` of any stone - the only moves worth weighing.
   function candidates(board, radius) {
     const seen = new Set();
     let any = false;
@@ -127,7 +127,7 @@ window.GAI = (function () {
 
   function pick(n) { return Math.floor(rand01() * n); }
   function randLess(p) { return rand01() < p; }
-  // Math.random is fine here — these picks are cosmetic, never persisted.
+  // Math.random is fine here - these picks are cosmetic, never persisted.
   function rand01() { return Math.random(); }
 
   return { bestMove: bestMove, levels: Object.keys(LEVELS) };

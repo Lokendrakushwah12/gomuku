@@ -1,8 +1,8 @@
-# Gomoku — Five in a Row
+# Gomoku - Five in a Row
 
 A 15×15 Gomoku game you can play with one friend over a shareable link, with
 live spectators, synthesized sound, and a persistent win/loss record. No
-backend, no database, no API keys — the realtime layer is **WebRTC peer-to-peer**
+backend, no database, no API keys - the realtime layer is **WebRTC peer-to-peer**
 via [PeerJS](https://peerjs.com/).
 
 <img width="1512" height="857" alt="image" src="https://github.com/user-attachments/assets/507f0fc0-d428-4d4b-8863-aaa86d82a81b" />
@@ -11,7 +11,7 @@ via [PeerJS](https://peerjs.com/).
 
 
 > Black always opens; first to get five stones in a row (horizontal, vertical,
-> or diagonal) wins. This is freestyle Gomoku — no opening restrictions and
+> or diagonal) wins. This is freestyle Gomoku - no opening restrictions and
 > overlines (six or more) also count.
 
 ---
@@ -26,7 +26,7 @@ There is no server of your own holding game state. The flow is:
 2. **You share the link** (`…/?room=CODE`). The page auto-fills and joins from
    that `room` query param.
 3. **Your friend opens it.** Their browser opens a direct WebRTC data channel
-   to yours. From here on, moves travel browser-to-browser — the broker is no
+   to yours. From here on, moves travel browser-to-browser - the broker is no
    longer in the loop.
 4. **Roles are assigned by the host.** The creator plays **Black** and is the
    authority for game state. The first joiner who wants to play takes **White**.
@@ -64,7 +64,7 @@ gomoku/
 
 The four scripts load in order and communicate through small global namespaces
 (`GSound`, `GEngine`, `GNet`) plus an event API (`GNet.on(...)`). No build step,
-no bundler, no dependencies to install — PeerJS is loaded from a CDN.
+no bundler, no dependencies to install - PeerJS is loaded from a CDN.
 
 ---
 
@@ -75,7 +75,7 @@ can open `index.html` directly. But for clipboard, audio, and WebRTC to behave
 consistently, serve it over `http://localhost`:
 
 ```bash
-# any static server works — pick one
+# any static server works - pick one
 npx serve .
 # or
 python3 -m http.server 8000
@@ -106,7 +106,7 @@ vercel --prod # production deploy
 ```
 
 The included `vercel.json` enables clean URLs and a light cache header on
-`/assets`. It's optional — delete it and the site still deploys fine.
+`/assets`. It's optional - delete it and the site still deploys fine.
 
 No environment variables are needed.
 

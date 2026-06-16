@@ -1,4 +1,4 @@
-/* engine.js — pure Gomoku rules. No DOM, no network. Used by the host to keep
+/* engine.js - pure Gomoku rules. No DOM, no network. Used by the host to keep
    the authoritative game state, and by the UI for board constants. */
 window.GEngine = (function () {
   "use strict";

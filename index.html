@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Gomoku — Five in a Row</title>
+  <title>Gomoku - Five in a Row</title>
   <meta name="description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, take on the computer, or pass the device back and forth." />
 
   <!-- Favicons -->
@@ -16,11 +16,11 @@
 
   <!-- Social preview (Open Graph + Twitter) -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Gomoku — Five in a Row" />
+  <meta property="og:title" content="Gomoku - Five in a Row" />
   <meta property="og:description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, take on the computer, or pass the device back and forth." />
   <meta property="og:image" content="assets/open.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Gomoku — Five in a Row" />
+  <meta name="twitter:title" content="Gomoku - Five in a Row" />
   <meta name="twitter:description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, take on the computer, or pass the device back and forth." />
   <meta name="twitter:image" content="assets/open.png" />
 
@@ -54,7 +54,7 @@
       <div class="card">
         <h3>Play online</h3>
         <p>Create a room, then send the invite link to one friend. Anyone else who opens it can watch.</p>
-        <button class="btn btn-primary" id="create-btn">Create a room</button>
+        <button class="btn btn-primary btn-clip" id="create-btn">Create a room</button>
       </div>
 
       <div class="card">
@@ -62,7 +62,7 @@
         <p>Got a 5-letter room code from a friend? Drop it in.</p>
         <div class="join-row">
           <input id="join-input" maxlength="5" placeholder="A B C D E" autocomplete="off" spellcheck="false" />
-          <button class="btn btn-primary" id="join-btn">Join</button>
+          <button class="btn btn-primary btn-clip" id="join-btn">Join</button>
         </div>
       </div>
 
@@ -70,16 +70,16 @@
         <h3>Play the computer</h3>
         <p>You play Black against the machine. Pick how hard it pushes back.</p>
         <div class="level-row">
-          <button class="btn btn-ghost" data-level="easy">Easy</button>
-          <button class="btn btn-ghost" data-level="medium">Medium</button>
-          <button class="btn btn-ghost" data-level="hard">Hard</button>
+          <button class="btn btn-ghost btn-clip" data-level="easy">Easy</button>
+          <button class="btn btn-ghost btn-clip" data-level="medium">Medium</button>
+          <button class="btn btn-ghost btn-clip" data-level="hard">Hard</button>
         </div>
       </div>
 
       <div class="card">
         <h3>Pass &amp; play</h3>
-        <p>Two players, one screen — take turns on this device.</p>
-        <button class="btn btn-ghost" id="local-btn">Start a local game</button>
+        <p>Two players, one screen - take turns on this device.</p>
+        <button class="btn btn-ghost btn-clip" id="local-btn">Start a local game</button>
       </div>
 
       <div class="err" id="lobby-err"></div>
@@ -117,21 +117,21 @@
 
         <div class="panel" id="room-panel">
           <div class="room-line">
-            <span class="room-code" id="room-code">—</span>
+            <span class="room-code" id="room-code">-</span>
             <span class="role-badge you" id="role-badge">You</span>
           </div>
           <div class="room-line">
             <span class="hint">Invite a friend to play</span>
             <span style="display:flex; gap:8px;">
-              <button class="btn btn-ghost copy-btn" id="copy-code">Code</button>
-              <button class="btn btn-primary copy-btn" id="copy-link">Copy link</button>
+              <button class="btn btn-ghost copy-btn btn-clip" id="copy-code">Code</button>
+              <button class="btn btn-primary copy-btn btn-clip" id="copy-link">Copy link</button>
             </span>
           </div>
         </div>
 
         <div class="actions">
-          <button class="btn btn-primary hidden" id="rematch-btn">Rematch</button>
-          <button class="btn btn-ghost" id="leave-btn">Leave</button>
+          <button class="btn btn-primary hidden btn-clip" id="rematch-btn">Rematch</button>
+          <button class="btn btn-ghost btn-clip" id="leave-btn">Leave</button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-/* ui.js — rendering, input, and glue. Reads game state from GNet, draws the
+/* ui.js - rendering, input, and glue. Reads game state from GNet, draws the
    board, wires the controls, plays sound on state transitions, and keeps the
    lifetime win/loss/draw tally in localStorage. */
 (function () {
@@ -115,17 +115,17 @@
     if (mode === "online") {
       if (state.status === "waiting") msg = "Waiting for a friend";
       else if (state.status === "won") msg = (state.winner === 1 ? "Black" : "White") + " wins";
-      else if (state.status === "draw") msg = "Board full — a draw";
+      else if (state.status === "draw") msg = "Board full - a draw";
       else if (role === "spectator") msg = "Spectating";
       el.turnLabel.textContent = (role !== "spectator" && state.status === "playing") ? (canMove() ? "Your turn" : "Their turn") : "Turn";
     } else if (mode === "computer") {
       if (state.status === "won") msg = state.winner === 1 ? "You win" : "Computer wins";
-      else if (state.status === "draw") msg = "Board full — a draw";
+      else if (state.status === "draw") msg = "Board full - a draw";
       else msg = state.turn === 1 ? "" : "Computer is thinking";
       el.turnLabel.textContent = state.status === "playing" ? (state.turn === 1 ? "Your turn" : "Computer") : "Turn";
     } else {
       if (state.status === "won") msg = (state.winner === 1 ? "Black" : "White") + " wins";
-      else if (state.status === "draw") msg = "Board full — a draw";
+      else if (state.status === "draw") msg = "Board full - a draw";
       el.turnLabel.textContent = "Turn";
     }
     el.statusMsg.textContent = msg;
@@ -135,7 +135,7 @@
 
     if (mode === "online") {
       el.roomPanel.classList.remove("hidden");
-      el.roomCode.textContent = GNet.getCode() || "—";
+      el.roomCode.textContent = GNet.getCode() || "-";
       el.roleBadge.textContent = role === "spectator" ? "Spectator" : "You play " + role;
       el.roleBadge.classList.toggle("you", role !== "spectator");
     } else {
@@ -245,7 +245,7 @@
     GSound.sweep();
     GNet.create(function (code, url) {
       shareLink = url; enterGame();
-      toast("Room " + code + " — share the link");
+      toast("Room " + code + " - share the link");
     });
   }
 

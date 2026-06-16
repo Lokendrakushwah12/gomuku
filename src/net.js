@@ -1,11 +1,11 @@
-/* net.js — peer-to-peer rooms over WebRTC (PeerJS).
+/* net.js - peer-to-peer rooms over WebRTC (PeerJS).
  *
  * Model: the room creator is the HOST and plays Black. The host is the single
  * source of truth for game state. Everyone else connects TO the host:
  *   - the first joiner who wants to play takes White
  *   - anyone after that becomes a spectator
  * The host validates every move and broadcasts the full state to all peers.
- * There is no server of our own — PeerJS's public broker only introduces the
+ * There is no server of our own - PeerJS's public broker only introduces the
  * browsers, after which the data flows directly between them.
  *
  * UI talks to this module through a tiny intent API (requestMove / requestRematch)
@@ -72,7 +72,7 @@ window.GNet = (function () {
     peer.on("connection", setupIncoming);
 
     peer.on("error", function (err) {
-      if (err && err.type === "unavailable-id") {       // code already in use globally — pick another
+      if (err && err.type === "unavailable-id") {       // code already in use globally - pick another
         code = genCode(); try { peer.destroy(); } catch (e) {}
         openHost(onReady, attempt + 1);
       } else if (err && err.type === "peer-unavailable") {
@@ -107,7 +107,7 @@ window.GNet = (function () {
       if (conn === whiteConn) {
         whiteConn = null;
         state.players.white = false;
-        if (state.status === "playing") emit("status", "Opponent left — waiting for someone to join");
+        if (state.status === "playing") emit("status", "Opponent left - waiting for someone to join");
         broadcast();
         emit("state", state);
       }
@@ -172,7 +172,7 @@ window.GNet = (function () {
       role = d.role; state = d.state;
       emit("role", role);
       emit("state", state);
-      emit("status", role === "spectator" ? "Spectating" : "Connected — you play White");
+      emit("status", role === "spectator" ? "Spectating" : "Connected - you play White");
     } else if (d.t === "state") {
       state = d.state; emit("state", state);
     }
