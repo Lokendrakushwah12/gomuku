@@ -1,761 +1,149 @@
-<!--
-  Gomoku — Five in a Row
-  Self-contained artifact. Multiplayer rooms run on the Claude artifact shared
-  key-value store (window.storage). Scores persist to the same store (localStorage
-  is unavailable inside artifacts). Sound is synthesized with the Web Audio API.
--->
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-
-<style>
-  :root {
-    --lacquer:   #161310;
-    --lacquer-2: #1f1a15;
-    --wood-hi:   #e7b765;
-    --wood:      #d49b4a;
-    --wood-lo:   #b97f33;
-    --ink:       #5a3d1f;
-    --ink-soft:  #7a5631;
-    --cinnabar:  #c24a30;
-    --cinnabar-hi:#df6347;
-    --clam:      #f4efe4;
-    --slate-hi:  #34302a;
-    --slate:     #1a1714;
-    --paper:     #efe7d6;
-    --paper-dim: #b9ac96;
-    --line:      rgba(239,231,214,.10);
-  }
-
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background:
-      radial-gradient(120% 90% at 50% -10%, #211b15 0%, var(--lacquer) 55%, #100d0a 100%);
-    color: var(--paper);
-    font-family: "Inter", system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: clamp(14px, 3vw, 34px);
-  }
-
-  .wrap { width: 100%; max-width: 980px; display: flex; flex-direction: column; align-items: center; }
-
-  /* ---------- Top bar ---------- */
-  .topbar {
-    width: 100%;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin-bottom: clamp(14px, 2.6vw, 26px);
-  }
-  .brand { display: flex; align-items: baseline; gap: 12px; cursor: pointer; user-select: none; }
-  .brand h1 {
-    font-family: "Marcellus", serif; font-weight: 400;
-    font-size: clamp(26px, 4.4vw, 40px); letter-spacing: .06em;
-    margin: 0; color: var(--paper);
-  }
-  .brand .sub {
-    font-size: 12px; letter-spacing: .34em; text-transform: uppercase;
-    color: var(--cinnabar-hi); font-weight: 600;
-  }
-  .topbar-right { display: flex; align-items: center; gap: 10px; }
-
-  .stat-chip {
-    display: flex; gap: 12px; align-items: center;
-    font-size: 12.5px; color: var(--paper-dim);
-    background: rgba(0,0,0,.22); border: 1px solid var(--line);
-    padding: 7px 13px; border-radius: 999px;
-  }
-  .stat-chip b { color: var(--paper); font-weight: 600; }
-  .stat-chip .w { color: var(--clam); }
-  .stat-chip .l { color: var(--cinnabar-hi); }
-
-  .icon-btn {
-    appearance: none; border: 1px solid var(--line); background: rgba(0,0,0,.22);
-    color: var(--paper); width: 40px; height: 40px; border-radius: 12px;
-    font-size: 17px; cursor: pointer; display: grid; place-items: center;
-    transition: border-color .15s, background .15s, transform .08s;
-  }
-  .icon-btn:hover { border-color: rgba(239,231,214,.3); }
-  .icon-btn:active { transform: scale(.94); }
-
-  /* ---------- Lobby ---------- */
-  .lobby { width: 100%; max-width: 520px; text-align: center; }
-  .lobby .hero {
-    font-family: "Marcellus", serif; font-size: clamp(34px, 7vw, 58px);
-    line-height: 1.05; margin: clamp(10px,3vw,28px) 0 6px; letter-spacing: .02em;
-  }
-  .lobby .hero em { color: var(--cinnabar-hi); font-style: normal; }
-  .lobby .lede { color: var(--paper-dim); font-size: 15px; margin: 0 auto 30px; max-width: 30ch; }
-
-  .card {
-    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.18));
-    border: 1px solid var(--line); border-radius: 18px;
-    padding: 20px; text-align: left;
-  }
-  .card + .card { margin-top: 14px; }
-  .card h3 {
-    font-family: "Marcellus", serif; font-weight: 400; font-size: 19px; margin: 0 0 4px;
-    letter-spacing: .03em;
-  }
-  .card p { margin: 0 0 16px; color: var(--paper-dim); font-size: 13.5px; line-height: 1.5; }
-
-  .btn {
-    appearance: none; border: none; cursor: pointer; font-family: inherit;
-    font-weight: 600; font-size: 15px; border-radius: 12px; padding: 13px 20px;
-    transition: transform .08s, filter .15s, background .15s; width: 100%;
-  }
-  .btn:active { transform: translateY(1px) scale(.995); }
-  .btn-primary { background: var(--cinnabar); color: #fff; box-shadow: 0 6px 18px rgba(194,74,48,.35); }
-  .btn-primary:hover { filter: brightness(1.08); }
-  .btn-ghost { background: rgba(239,231,214,.07); color: var(--paper); border: 1px solid var(--line); }
-  .btn-ghost:hover { background: rgba(239,231,214,.12); }
-
-  .join-row { display: flex; gap: 10px; }
-  .join-row input {
-    flex: 1; min-width: 0; font-family: "Space Mono", monospace; font-weight: 700;
-    letter-spacing: .22em; text-transform: uppercase; font-size: 17px;
-    background: rgba(0,0,0,.28); border: 1px solid var(--line); color: var(--paper);
-    border-radius: 12px; padding: 0 14px; text-align: center;
-  }
-  .join-row input:focus { outline: none; border-color: var(--cinnabar); }
-  .join-row .btn { width: auto; white-space: nowrap; }
-
-  .err { color: var(--cinnabar-hi); font-size: 13px; margin-top: 12px; min-height: 18px; }
-
-  /* ---------- Game layout ---------- */
-  .game { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: clamp(16px,2.5vw,28px); align-items: start; }
-  @media (max-width: 760px) { .game { grid-template-columns: 1fr; } .side { order: -1; } }
-
-  .boardbox {
-    background:
-      radial-gradient(130% 130% at 30% 20%, var(--wood-hi) 0%, var(--wood) 46%, var(--wood-lo) 100%);
-    border-radius: 14px;
-    padding: clamp(10px, 2.4vw, 22px);
-    box-shadow: 0 24px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.25);
-    width: 100%; max-width: 600px; margin: 0 auto;
-    position: relative;
-  }
-  .board { width: 100%; display: block; touch-action: manipulation; }
-  .hit { fill: transparent; cursor: pointer; }
-  .boardbox.locked .hit { cursor: default; }
-
-  /* ---------- Side panel ---------- */
-  .side { display: flex; flex-direction: column; gap: 14px; }
-  .panel {
-    background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(0,0,0,.2));
-    border: 1px solid var(--line); border-radius: 16px; padding: 16px;
-  }
-  .turn-card { display: flex; align-items: center; gap: 14px; }
-  .turn-stone {
-    width: 38px; height: 38px; border-radius: 50%; flex: none;
-    box-shadow: 0 3px 7px rgba(0,0,0,.45);
-  }
-  .turn-stone.black { background: radial-gradient(circle at 34% 30%, #4a4540, #100e0c 72%); }
-  .turn-stone.white { background: radial-gradient(circle at 34% 30%, #ffffff, #cdc6b6 78%); }
-  .turn-text { line-height: 1.25; }
-  .turn-text .label { font-size: 11.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--paper-dim); }
-  .turn-text .who { font-family: "Marcellus", serif; font-size: 20px; }
-  .turn-card.active .turn-stone { animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(194,74,48,.0); } 50% { box-shadow: 0 0 0 7px rgba(194,74,48,.22); } }
-
-  .score-row { display: flex; gap: 10px; }
-  .score-cell { flex: 1; text-align: center; padding: 12px 6px; border-radius: 12px; background: rgba(0,0,0,.22); border: 1px solid var(--line); }
-  .score-cell .nm { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--paper-dim); display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-  .dot.black { background: radial-gradient(circle at 34% 30%, #4a4540, #100e0c 72%); }
-  .dot.white { background: radial-gradient(circle at 34% 30%, #fff, #cdc6b6 78%); }
-  .score-cell .vl { font-family: "Marcellus", serif; font-size: 28px; margin-top: 2px; }
-
-  .room-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .room-code { font-family: "Space Mono", monospace; font-weight: 700; letter-spacing: .2em; font-size: 22px; color: var(--paper); }
-  .role-badge { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--paper-dim); }
-  .role-badge.you { color: var(--cinnabar-hi); border-color: rgba(194,74,48,.4); }
-
-  .hint { font-size: 12.5px; color: var(--paper-dim); line-height: 1.5; }
-  .copy-btn { font-size: 12px; padding: 7px 12px; border-radius: 9px; width: auto; }
-
-  .status-msg {
-    text-align: center; font-family: "Marcellus", serif; font-size: 17px;
-    color: var(--cinnabar-hi); min-height: 22px; margin-top: 2px;
-  }
-  .waiting-dots::after { content: ""; animation: dots 1.4s steps(4,end) infinite; }
-  @keyframes dots { 0%{content:"";} 25%{content:"·";} 50%{content:"··";} 75%{content:"···";} }
-
-  .actions { display: flex; gap: 10px; }
-  .actions .btn { font-size: 13.5px; padding: 11px 14px; }
-
-  .toast {
-    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
-    background: var(--lacquer-2); border: 1px solid var(--line); color: var(--paper);
-    padding: 11px 18px; border-radius: 12px; font-size: 13.5px; opacity: 0;
-    pointer-events: none; transition: opacity .25s, transform .25s; box-shadow: 0 10px 30px rgba(0,0,0,.4);
-    z-index: 50;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
-  .hidden { display: none !important; }
-</style>
-
-<div class="wrap">
-  <div class="topbar">
-    <div class="brand" id="brand">
-      <h1>Gomoku</h1>
-      <span class="sub">Five in a Row</span>
-    </div>
-    <div class="topbar-right">
-      <div class="stat-chip" id="lifetime">
-        <span><b class="w" id="lt-w">0</b> won</span>
-        <span><b class="l" id="lt-l">0</b> lost</span>
-        <span><b id="lt-d">0</b> drawn</span>
-      </div>
-      <button class="icon-btn" id="sound-btn" title="Toggle sound">🔊</button>
-    </div>
-  </div>
-
-  <!-- ============ LOBBY ============ -->
-  <div class="lobby" id="lobby">
-    <div class="hero">Place a stone.<br><em>Make five.</em></div>
-    <p class="lede">A quiet duel on a 15×15 board. Play a friend online, or pass the device back and forth.</p>
-
-    <div class="card">
-      <h3>Play online</h3>
-      <p>Create a room, then share the code with one friend. Anyone else who opens the board can watch.</p>
-      <button class="btn btn-primary" id="create-btn">Create a room</button>
-    </div>
-
-    <div class="card">
-      <h3>Join with a code</h3>
-      <p>Got a 5-letter room code from a friend? Drop it in.</p>
-      <div class="join-row">
-        <input id="join-input" maxlength="5" placeholder="A B C D E" autocomplete="off" spellcheck="false" />
-        <button class="btn btn-primary" id="join-btn">Join</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Pass &amp; play</h3>
-      <p>Two players, one screen — take turns on this device.</p>
-      <button class="btn btn-ghost" id="local-btn">Start a local game</button>
-    </div>
-
-    <div class="err" id="lobby-err"></div>
-  </div>
-
-  <!-- ============ GAME ============ -->
-  <div class="game hidden" id="game">
-    <div class="boardbox" id="boardbox">
-      <svg class="board" id="board" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg"></svg>
-    </div>
-
-    <div class="side">
-      <div class="panel turn-card" id="turn-card">
-        <div class="turn-stone black" id="turn-stone"></div>
-        <div class="turn-text">
-          <div class="label" id="turn-label">Turn</div>
-          <div class="who" id="turn-who">Black</div>
-        </div>
-      </div>
-
-      <div class="status-msg" id="status-msg"></div>
-
-      <div class="panel">
-        <div class="score-row">
-          <div class="score-cell">
-            <div class="nm"><span class="dot black"></span>Black</div>
-            <div class="vl" id="score-black">0</div>
-          </div>
-          <div class="score-cell">
-            <div class="nm"><span class="dot white"></span>White</div>
-            <div class="vl" id="score-white">0</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel" id="room-panel">
-        <div class="room-line" style="margin-bottom:10px;">
-          <span class="room-code" id="room-code">—</span>
-          <span class="role-badge you" id="role-badge">You</span>
-        </div>
-        <div class="room-line">
-          <span class="hint">Share this code with a friend.</span>
-          <button class="btn btn-ghost copy-btn" id="copy-btn">Copy</button>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="btn btn-primary" id="rematch-btn">Rematch</button>
-        <button class="btn btn-ghost" id="leave-btn">Leave</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-(function () {
-  "use strict";
-
-  // ---------------------------------------------------------------------------
-  // Constants
-  // ---------------------------------------------------------------------------
-  const N = 15;                 // board is N x N intersections
-  const CELLS = N * N;
-  const MARGIN = 34;            // svg padding around the grid
-  const SPAN = 600 - MARGIN * 2;
-  const STEP = SPAN / (N - 1);
-  const STAR = [3, 7, 11];      // hoshi coordinates (0-indexed)
-  const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
-  const POLL_MS = 1500;
-  const DIRS = [[1, 0], [0, 1], [1, 1], [1, -1]];
-  const hasStore = typeof window !== "undefined" && window.storage && typeof window.storage.get === "function";
-
-  // ---------------------------------------------------------------------------
-  // Sound (Web Audio, fully synthesized — no files)
-  // ---------------------------------------------------------------------------
-  let actx = null, muted = false;
-  function audio() {
-    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
-    if (actx.state === "suspended") actx.resume();
-    return actx;
-  }
-  function tone(freq, dur, type, gain, when) {
-    const ax = audio(); if (!ax || muted) return;
-    const t0 = ax.currentTime + (when || 0);
-    const osc = ax.createOscillator(), g = ax.createGain();
-    osc.type = type || "sine"; osc.frequency.setValueAtTime(freq, t0);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(gain || 0.18, t0 + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(g).connect(ax.destination);
-    osc.start(t0); osc.stop(t0 + dur + 0.02);
-  }
-  function clack(forWhite) {
-    const ax = audio(); if (!ax || muted) return;
-    // short filtered noise burst = the "click" of stone on wood
-    const len = 0.05, buf = ax.createBuffer(1, ax.sampleRate * len, ax.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
-    const src = ax.createBufferSource(); src.buffer = buf;
-    const bp = ax.createBiquadFilter(); bp.type = "bandpass";
-    bp.frequency.value = forWhite ? 1700 : 1250; bp.Q.value = 0.9;
-    const g = ax.createGain(); g.gain.value = 0.5;
-    src.connect(bp).connect(g).connect(ax.destination); src.start();
-    tone(forWhite ? 320 : 240, 0.07, "triangle", 0.1); // woody body
-  }
-  function sndWin() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.32, "sine", 0.16, i * 0.1)); }
-  function sndDraw() { tone(392, 0.2, "sine", 0.12); tone(330, 0.28, "sine", 0.1, 0.12); }
-  function sndJoin() { tone(660, 0.12, "sine", 0.14); tone(880, 0.16, "sine", 0.12, 0.1); }
-  function sndDeny() { tone(150, 0.13, "sawtooth", 0.12); }
-  function sndSweep() { tone(300, 0.18, "sine", 0.08); tone(500, 0.18, "sine", 0.07, 0.05); }
-
-  // ---------------------------------------------------------------------------
-  // Persistent storage helpers (shared room state + personal scores)
-  // ---------------------------------------------------------------------------
-  async function readRoom(code) {
-    if (!hasStore) return null;
-    try { const r = await window.storage.get("room:" + code, true); return r ? JSON.parse(r.value) : null; }
-    catch (e) { return null; }
-  }
-  async function writeRoom(state) {
-    if (!hasStore) return;
-    try { await window.storage.set("room:" + state.code, JSON.stringify(state), true); } catch (e) {}
-  }
-  async function loadClientId() {
-    let id = "c" + Math.random().toString(36).slice(2, 10);
-    if (!hasStore) return id;
-    try { const r = await window.storage.get("clientId", false); if (r && r.value) return r.value; } catch (e) {}
-    try { await window.storage.set("clientId", id, false); } catch (e) {}
-    return id;
-  }
-  async function loadStats() {
-    const def = { w: 0, l: 0, d: 0 };
-    if (!hasStore) return def;
-    try { const r = await window.storage.get("stats", false); return r ? Object.assign(def, JSON.parse(r.value)) : def; }
-    catch (e) { return def; }
-  }
-  async function saveStats(s) { if (!hasStore) return; try { await window.storage.set("stats", JSON.stringify(s), false); } catch (e) {} }
-
-  // ---------------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------------
-  const S = {
-    screen: "lobby",
-    mode: null,          // 'online' | 'local'
-    role: null,          // 'black' | 'white' | 'spectator'
-    room: null,          // shared room state
-    localVer: 0,
-    clientId: null,
-    stats: { w: 0, l: 0, d: 0 },
-    statsBanked: false,  // ensure a finished online game counts once
-    // local-mode state
-    board: new Array(CELLS).fill(0),
-    turn: 1, status: "playing", winner: 0, winLine: null, lastMove: null,
-    scores: { black: 0, white: 0 },
-  };
-  let pollTimer = null;
-
-  function freshBoardState() {
-    return { board: new Array(CELLS).fill(0), turn: 1, status: "playing", winner: 0, winLine: null, lastMove: null };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Game logic
-  // ---------------------------------------------------------------------------
-  function checkWin(board, idx, player) {
-    const r0 = Math.floor(idx / N), c0 = idx % N;
-    for (const [dr, dc] of DIRS) {
-      let line = [idx];
-      for (let s = 1; s < N; s++) { const r = r0 + dr * s, c = c0 + dc * s; if (r < 0 || r >= N || c < 0 || c >= N || board[r * N + c] !== player) break; line.push(r * N + c); }
-      for (let s = 1; s < N; s++) { const r = r0 - dr * s, c = c0 - dc * s; if (r < 0 || r >= N || c < 0 || c >= N || board[r * N + c] !== player) break; line.unshift(r * N + c); }
-      if (line.length >= 5) return line;
-    }
-    return null;
-  }
-  const colorName = (p) => (p === 1 ? "black" : "white");
-
-  // The normalized view the renderer reads from, regardless of mode.
-  function view() {
-    if (S.mode === "online" && S.room) {
-      const rm = S.room;
-      const myTurn = S.role !== "spectator" && rm.status === "playing" && colorName(rm.turn) === S.role;
-      return {
-        board: rm.board, turn: rm.turn, status: rm.status, winner: rm.winner,
-        winLine: rm.winLine, lastMove: rm.lastMove, scores: rm.scores,
-        canMove: myTurn, role: S.role,
-        bothPresent: !!(rm.players.black && rm.players.white),
-      };
-    }
-    return {
-      board: S.board, turn: S.turn, status: S.status, winner: S.winner,
-      winLine: S.winLine, lastMove: S.lastMove, scores: S.scores,
-      canMove: S.status === "playing", role: null, bothPresent: true,
-    };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Rendering
-  // ---------------------------------------------------------------------------
-  const xy = (i) => ({ x: MARGIN + (i % N) * STEP, y: MARGIN + Math.floor(i / N) * STEP });
-
-  function renderBoard() {
-    const v = view();
-    let svg = "";
-    // grid lines
-    for (let i = 0; i < N; i++) {
-      const p = MARGIN + i * STEP;
-      svg += `<line x1="${MARGIN}" y1="${p}" x2="${600 - MARGIN}" y2="${p}" stroke="var(--ink)" stroke-width="1.1"/>`;
-      svg += `<line x1="${p}" y1="${MARGIN}" x2="${p}" y2="${600 - MARGIN}" stroke="var(--ink)" stroke-width="1.1"/>`;
-    }
-    // star points
-    for (const r of STAR) for (const c of STAR) { const { x, y } = xy(r * N + c); svg += `<circle cx="${x}" cy="${y}" r="3.4" fill="var(--ink)"/>`; }
-
-    // winning line glow
-    if (v.winLine && v.winLine.length) {
-      const a = xy(v.winLine[0]), b = xy(v.winLine[v.winLine.length - 1]);
-      svg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="var(--cinnabar)" stroke-width="9" stroke-linecap="round" opacity=".45"/>`;
-    }
-
-    // stones
-    const R = STEP * 0.44;
-    for (let i = 0; i < CELLS; i++) {
-      const p = v.board[i]; if (!p) continue;
-      const { x, y } = xy(i);
-      svg += `<circle cx="${x}" cy="${y + 1.5}" r="${R}" fill="rgba(0,0,0,.32)"/>`; // shadow
-      if (p === 1) svg += `<circle cx="${x}" cy="${y}" r="${R}" fill="url(#blk)"/>`;
-      else svg += `<circle cx="${x}" cy="${y}" r="${R}" fill="url(#wht)" stroke="#cdbfa3" stroke-width=".6"/>`;
-      svg += `<circle cx="${x - R * .3}" cy="${y - R * .3}" r="${R * .26}" fill="rgba(255,255,255,${p === 1 ? .28 : .85})"/>`; // glint
-    }
-    // last move marker
-    if (v.lastMove != null && v.board[v.lastMove]) {
-      const { x, y } = xy(v.lastMove);
-      svg += `<circle cx="${x}" cy="${y}" r="${R * .26}" fill="none" stroke="var(--cinnabar-hi)" stroke-width="2"/>`;
-    }
-    // gradients
-    svg += `<defs>
-      <radialGradient id="blk" cx="36%" cy="30%" r="75%"><stop offset="0%" stop-color="#56504a"/><stop offset="55%" stop-color="#221f1b"/><stop offset="100%" stop-color="#0b0a09"/></radialGradient>
-      <radialGradient id="wht" cx="36%" cy="30%" r="80%"><stop offset="0%" stop-color="#ffffff"/><stop offset="70%" stop-color="#f0e9d9"/><stop offset="100%" stop-color="#d2c8b2"/></radialGradient>
-    </defs>`;
-    // clickable hit targets on top
-    const canPlay = v.canMove;
-    for (let i = 0; i < CELLS; i++) {
-      if (v.board[i]) continue;
-      const { x, y } = xy(i);
-      svg += `<circle class="hit" data-idx="${i}" cx="${x}" cy="${y}" r="${STEP * 0.46}" ${canPlay ? "" : 'pointer-events="none"'}/>`;
-    }
-    el.board.innerHTML = svg;
-    el.boardbox.classList.toggle("locked", !canPlay);
-  }
-
-  function renderSide() {
-    const v = view();
-    // turn card
-    const turnColor = colorName(v.turn);
-    el.turnStone.className = "turn-stone " + turnColor;
-    el.turnWho.textContent = turnColor.charAt(0).toUpperCase() + turnColor.slice(1);
-    el.turnCard.classList.toggle("active", v.status === "playing");
-
-    // scores
-    el.scoreBlack.textContent = v.scores.black;
-    el.scoreWhite.textContent = v.scores.white;
-
-    // status message
-    let msg = "";
-    if (S.mode === "online") {
-      if (S.room && S.room.status === "waiting") msg = "Waiting for a friend";
-      else if (v.status === "won") msg = colorName(v.winner) === "black" ? "Black wins" : "White wins";
-      else if (v.status === "draw") msg = "Board full — a draw";
-      else if (S.role === "spectator") msg = "Spectating";
-      else el.turnLabel.textContent = v.canMove ? "Your turn" : "Their turn";
-    } else {
-      if (v.status === "won") msg = (colorName(v.winner) === "black" ? "Black" : "White") + " wins";
-      else if (v.status === "draw") msg = "Board full — a draw";
-      el.turnLabel.textContent = "Turn";
-    }
-    el.statusMsg.textContent = msg;
-    el.statusMsg.classList.toggle("waiting-dots", S.mode === "online" && S.room && S.room.status === "waiting");
-
-    // room panel
-    if (S.mode === "online") {
-      el.roomPanel.classList.remove("hidden");
-      el.roomCode.textContent = S.room ? S.room.code : "—";
-      el.roleBadge.textContent = S.role === "spectator" ? "Spectator" : "You play " + S.role;
-      el.roleBadge.classList.toggle("you", S.role !== "spectator");
-    } else {
-      el.roomPanel.classList.add("hidden");
-    }
-
-    // rematch button visibility: only players, only when game finished
-    const finished = v.status === "won" || v.status === "draw";
-    const canRematch = finished && (S.mode === "local" || (S.mode === "online" && S.role !== "spectator"));
-    el.rematchBtn.classList.toggle("hidden", !canRematch);
-  }
-
-  function render() { renderBoard(); renderSide(); }
-
-  function renderLifetime() {
-    el.ltW.textContent = S.stats.w; el.ltL.textContent = S.stats.l; el.ltD.textContent = S.stats.d;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Moves
-  // ---------------------------------------------------------------------------
-  async function place(idx) {
-    const v = view();
-    if (!v.canMove || v.board[idx]) { sndDeny(); return; }
-
-    if (S.mode === "online") {
-      const rm = S.room;
-      const player = rm.turn;
-      // re-read to reduce race risk, then re-validate
-      const fresh = await readRoom(rm.code);
-      if (fresh && fresh.version > rm.version) { adopt(fresh); if (view().board[idx] || !view().canMove) { return; } }
-      const board = S.room.board.slice();
-      board[idx] = player;
-      const line = checkWin(board, idx, player);
-      const full = board.every((c) => c !== 0);
-      const next = Object.assign({}, S.room, {
-        board, lastMove: idx, version: S.room.version + 1,
-        turn: player === 1 ? 2 : 1, updatedAt: Date.now(),
-      });
-      if (line) { next.status = "won"; next.winner = player; next.winLine = line; next.scores = Object.assign({}, S.room.scores); next.scores[colorName(player)]++; }
-      else if (full) { next.status = "draw"; }
-      S.room = next; S.localVer = next.version;
-      clack(player === 2);
-      render();
-      if (line) { sndWin(); bankResult(); } else if (full) { sndDraw(); bankResult(); }
-      await writeRoom(next);
-    } else {
-      const player = S.turn;
-      S.board[idx] = player; S.lastMove = idx;
-      const line = checkWin(S.board, idx, player);
-      clack(player === 2);
-      if (line) { S.status = "won"; S.winner = player; S.winLine = line; S.scores[colorName(player)]++; render(); sndWin(); }
-      else if (S.board.every((c) => c !== 0)) { S.status = "draw"; render(); sndDraw(); }
-      else { S.turn = player === 1 ? 2 : 1; render(); }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Online room lifecycle
-  // ---------------------------------------------------------------------------
-  function genCode() { let s = ""; for (let i = 0; i < 5; i++) s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)]; return s; }
-
-  async function createRoom() {
-    if (!hasStore) { lobbyErr("Online play needs this artifact to be published — try Pass & play for now."); return; }
-    sndSweep();
-    let code = genCode();
-    for (let i = 0; i < 4; i++) { const exist = await readRoom(code); if (!exist) break; code = genCode(); }
-    const base = freshBoardState();
-    const state = Object.assign(base, {
-      code, version: 1, players: { black: S.clientId, white: null },
-      scores: { black: 0, white: 0 }, rematch: { black: false, white: false }, updatedAt: Date.now(),
-    });
-    S.mode = "online"; S.role = "black"; S.room = state; S.localVer = 1; S.statsBanked = false;
-    await writeRoom(state);
-    enterGame(); startPolling();
-    toast("Room created — share code " + code);
-  }
-
-  async function joinRoom(code) {
-    if (!hasStore) { lobbyErr("Online play needs this artifact to be published — try Pass & play for now."); return; }
-    code = (code || "").toUpperCase().trim();
-    if (code.length !== 5) { lobbyErr("A room code is 5 letters."); return; }
-    let rm = await readRoom(code);
-    if (!rm) { lobbyErr("No room with that code. Double-check it, or create one."); return; }
-
-    // resume your existing seat if you were already in this room
-    if (rm.players.black === S.clientId) { S.role = "black"; }
-    else if (rm.players.white === S.clientId) { S.role = "white"; }
-    else if (!rm.players.white) {
-      rm.players.white = S.clientId; rm.status = rm.status === "waiting" ? "playing" : rm.status;
-      rm.version += 1; rm.updatedAt = Date.now();
-      S.role = "white"; await writeRoom(rm); sndJoin();
-    } else {
-      S.role = "spectator";
-    }
-    S.mode = "online"; S.room = rm; S.localVer = rm.version; S.statsBanked = (rm.status === "won" || rm.status === "draw");
-    sndSweep(); enterGame(); startPolling();
-    toast(S.role === "spectator" ? "Watching this game" : "You're in — you play " + S.role);
-  }
-
-  function adopt(remote) {
-    const prevMoves = S.room ? (S.room.lastMove) : null;
-    const prevStatus = S.room ? S.room.status : null;
-    const prevBothBlackWhite = S.room ? !!(S.room.players.black && S.room.players.white) : false;
-    S.room = remote; S.localVer = remote.version;
-    // opponent joined
-    if (!prevBothBlackWhite && remote.players.black && remote.players.white && S.role !== "spectator") { sndJoin(); toast("Your opponent joined"); }
-    // a new stone landed (from someone else)
-    if (remote.lastMove != null && remote.lastMove !== prevMoves && remote.status !== prevStatus + "x") {
-      clack(remote.board[remote.lastMove] === 2);
-    }
-    if (remote.status === "won" && prevStatus !== "won") { sndWin(); bankResult(); }
-    else if (remote.status === "draw" && prevStatus !== "draw") { sndDraw(); bankResult(); }
-    render();
-  }
-
-  function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(async () => {
-      if (S.mode !== "online" || !S.room || document.hidden) return;
-      const remote = await readRoom(S.room.code);
-      if (remote && remote.version > S.localVer) adopt(remote);
-    }, POLL_MS);
-  }
-  function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
-
-  async function bankResult() {
-    if (S.mode !== "online" || S.role === "spectator" || S.statsBanked) return;
-    S.statsBanked = true;
-    const v = view();
-    if (v.status === "draw") S.stats.d++;
-    else if (colorName(v.winner) === S.role) S.stats.w++;
-    else S.stats.l++;
-    renderLifetime(); await saveStats(S.stats);
-  }
-
-  async function rematch() {
-    if (S.mode === "local") {
-      Object.assign(S, freshBoardState()); sndSweep(); render(); return;
-    }
-    if (!S.room || S.role === "spectator") return;
-    const fresh = await readRoom(S.room.code) || S.room;
-    fresh.rematch = fresh.rematch || { black: false, white: false };
-    fresh.rematch[S.role] = true;
-    if (fresh.rematch.black && fresh.rematch.white) {
-      const base = freshBoardState();
-      Object.assign(fresh, base, { rematch: { black: false, white: false }, version: fresh.version + 1, updatedAt: Date.now() });
-      S.statsBanked = false; toast("New game — go!");
-    } else {
-      fresh.version += 1; toast("Rematch requested — waiting for opponent");
-    }
-    S.room = fresh; S.localVer = fresh.version; await writeRoom(fresh); sndSweep(); render();
-  }
-
-  function leave() {
-    stopPolling();
-    S.mode = null; S.role = null; S.room = null; S.statsBanked = false;
-    Object.assign(S, freshBoardState()); S.scores = { black: 0, white: 0 };
-    S.screen = "lobby";
-    el.game.classList.add("hidden"); el.lobby.classList.remove("hidden");
-    el.joinInput.value = ""; lobbyErr("");
-  }
-
-  // ---------------------------------------------------------------------------
-  // Screen helpers
-  // ---------------------------------------------------------------------------
-  function enterGame() { S.screen = "game"; el.lobby.classList.add("hidden"); el.game.classList.remove("hidden"); render(); }
-  function startLocal() { S.mode = "local"; Object.assign(S, freshBoardState()); S.scores = { black: 0, white: 0 }; sndSweep(); enterGame(); }
-  function lobbyErr(t) { el.lobbyErr.textContent = t; }
-
-  let toastTimer = null;
-  function toast(t) {
-    el.toast.textContent = t; el.toast.classList.add("show");
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.toast.classList.remove("show"), 2600);
-  }
-
-  // ---------------------------------------------------------------------------
-  // DOM refs + wiring
-  // ---------------------------------------------------------------------------
-  const el = {
-    lobby: document.getElementById("lobby"), game: document.getElementById("game"),
-    board: document.getElementById("board"), boardbox: document.getElementById("boardbox"),
-    createBtn: document.getElementById("create-btn"), joinBtn: document.getElementById("join-btn"),
-    joinInput: document.getElementById("join-input"), localBtn: document.getElementById("local-btn"),
-    lobbyErr: document.getElementById("lobby-err"),
-    turnCard: document.getElementById("turn-card"), turnStone: document.getElementById("turn-stone"),
-    turnLabel: document.getElementById("turn-label"), turnWho: document.getElementById("turn-who"),
-    statusMsg: document.getElementById("status-msg"),
-    scoreBlack: document.getElementById("score-black"), scoreWhite: document.getElementById("score-white"),
-    roomPanel: document.getElementById("room-panel"), roomCode: document.getElementById("room-code"),
-    roleBadge: document.getElementById("role-badge"), copyBtn: document.getElementById("copy-btn"),
-    rematchBtn: document.getElementById("rematch-btn"), leaveBtn: document.getElementById("leave-btn"),
-    soundBtn: document.getElementById("sound-btn"), brand: document.getElementById("brand"),
-    toast: document.getElementById("toast"),
-    ltW: document.getElementById("lt-w"), ltL: document.getElementById("lt-l"), ltD: document.getElementById("lt-d"),
-  };
-
-  el.board.addEventListener("click", (e) => {
-    const t = e.target;
-    if (t && t.classList.contains("hit")) { audio(); place(parseInt(t.getAttribute("data-idx"), 10)); }
-  });
-  el.createBtn.addEventListener("click", () => { audio(); createRoom(); });
-  el.joinBtn.addEventListener("click", () => { audio(); joinRoom(el.joinInput.value); });
-  el.joinInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { audio(); joinRoom(el.joinInput.value); } });
-  el.joinInput.addEventListener("input", () => { el.joinInput.value = el.joinInput.value.toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 5); });
-  el.localBtn.addEventListener("click", () => { audio(); startLocal(); });
-  el.rematchBtn.addEventListener("click", () => { audio(); rematch(); });
-  el.leaveBtn.addEventListener("click", () => { audio(); sndSweep(); leave(); });
-  el.brand.addEventListener("click", () => { if (S.screen === "game") leave(); });
-  el.copyBtn.addEventListener("click", async () => {
-    if (!S.room) return;
-    try { await navigator.clipboard.writeText(S.room.code); toast("Code copied: " + S.room.code); }
-    catch (e) { toast("Room code: " + S.room.code); }
-  });
-  el.soundBtn.addEventListener("click", () => {
-    muted = !muted; el.soundBtn.textContent = muted ? "🔇" : "🔊";
-    if (!muted) { audio(); sndJoin(); }
-  });
-  document.addEventListener("visibilitychange", async () => {
-    if (!document.hidden && S.mode === "online" && S.room) {
-      const remote = await readRoom(S.room.code); if (remote && remote.version > S.localVer) adopt(remote);
-    }
-  });
-
-  // ---------------------------------------------------------------------------
-  // Boot
-  // ---------------------------------------------------------------------------
-  (async function init() {
-    S.clientId = await loadClientId();
-    S.stats = await loadStats();
-    renderLifetime();
-    if (!hasStore) lobbyErr("");
-  })();
-})();
-</script>
+# Gomoku — Five in a Row
+
+A 15×15 Gomoku game you can play with one friend over a shareable link, with
+live spectators, synthesized sound, and a persistent win/loss record. No
+backend, no database, no API keys — the realtime layer is **WebRTC peer-to-peer**
+via [PeerJS](https://peerjs.com/).
+
+> Black always opens; first to get five stones in a row (horizontal, vertical,
+> or diagonal) wins. This is freestyle Gomoku — no opening restrictions and
+> overlines (six or more) also count.
+
+---
+
+## How online play works
+
+There is no server of your own holding game state. The flow is:
+
+1. **You create a room.** Your browser registers a peer id on PeerJS's free
+   public broker (`gmk5r-<CODE>`). That broker exists only to introduce
+   browsers to each other.
+2. **You share the link** (`…/?room=CODE`). The page auto-fills and joins from
+   that `room` query param.
+3. **Your friend opens it.** Their browser opens a direct WebRTC data channel
+   to yours. From here on, moves travel browser-to-browser — the broker is no
+   longer in the loop.
+4. **Roles are assigned by the host.** The creator plays **Black** and is the
+   authority for game state. The first joiner who wants to play takes **White**.
+   Anyone who opens the link after that becomes a **spectator** and watches the
+   game update live.
+
+The host validates every move and broadcasts the full board to all connected
+peers, so spectators and the white player always see a consistent game.
+
+### Important limitation
+
+Because there's no server, **the host's tab must stay open** for the room to
+exist. If the creator closes the tab, the room is gone and players/spectators
+disconnect. This is the trade-off for a zero-backend, zero-key design. See
+*Going more robust* below if you want rooms to survive a host leaving.
+
+---
+
+## Project structure
+
+```
+gomoku/
+├── index.html          # markup + script/style includes
+├── assets/
+│   └── styles.css       # all styling (goban + cinnabar theme)
+├── src/
+│   ├── sound.js         # Web Audio effects, fully synthesized (no files)
+│   ├── engine.js        # pure rules: board, win detection, state transitions
+│   ├── net.js           # PeerJS layer: rooms, host authority, broadcast
+│   └── ui.js            # rendering, input, sound diffing, scores, screen flow
+├── vercel.json          # static config (optional)
+├── .gitignore
+└── README.md
+```
+
+The four scripts load in order and communicate through small global namespaces
+(`GSound`, `GEngine`, `GNet`) plus an event API (`GNet.on(...)`). No build step,
+no bundler, no dependencies to install — PeerJS is loaded from a CDN.
+
+---
+
+## Run locally
+
+Because the scripts are loaded as plain `<script>` tags (not ES modules), you
+can open `index.html` directly. But for clipboard, audio, and WebRTC to behave
+consistently, serve it over `http://localhost`:
+
+```bash
+# any static server works — pick one
+npx serve .
+# or
+python3 -m http.server 8000
+```
+
+Then visit `http://localhost:8000` (or whatever port your server prints).
+
+To test multiplayer on one machine, open the room link in **two different
+browser windows** (or one normal + one incognito) so each gets its own peer id.
+
+---
+
+## Deploy to Vercel
+
+This is a static site, so deployment is trivial.
+
+**From the dashboard**
+1. Push this folder to a GitHub repo.
+2. In Vercel, *Add New → Project* and import the repo.
+3. Framework preset: **Other** (no build command, output is the repo root).
+4. Deploy. Your link is live.
+
+**From the CLI**
+```bash
+npm i -g vercel
+vercel        # preview deploy
+vercel --prod # production deploy
+```
+
+The included `vercel.json` enables clean URLs and a light cache header on
+`/assets`. It's optional — delete it and the site still deploys fine.
+
+No environment variables are needed.
+
+---
+
+## Controls & features
+
+- **Create a room** → get a code + invite link; share the link with a friend.
+- **Join with a code** → enter a 5-character code, or just open a `?room=` link.
+- **Pass & play** → two people share one device (does not affect your record).
+- **Copy link / Code** → invite buttons inside a room.
+- **Rematch** → both players must agree; the running score carries over.
+- **🔊** → mute/unmute. Sound is generated live (a woody *clack* per stone, a
+  chime on a win), so there are no audio assets to host.
+- **Win / loss / draw record** → stored in `localStorage` under `gomoku.stats`,
+  so it survives reloads on the same browser.
+
+---
+
+## Going more robust (optional upgrades)
+
+The public PeerJS broker is convenient but occasionally flaky and rate-limited.
+If you want production-grade reliability, two paths:
+
+1. **Self-host the PeerJS signaling server** (still peer-to-peer for game data):
+   ```bash
+   npm i -g peer
+   peerjs --port 9000 --key peerjs --path /
+   ```
+   Then point the clients at it by passing options to `new Peer(...)` in
+   `src/net.js`:
+   ```js
+   new Peer(PREFIX + code, { host: "your-host", port: 9000, path: "/", secure: true });
+   ```
+
+2. **Move to a hosted realtime backend** (e.g. Supabase Realtime channels) if
+   you'd rather rooms survive the host leaving and not depend on a public broker
+   at all. That swaps `src/net.js` for a channel-based layer; the engine, UI,
+   and sound stay exactly as they are.
+
+---
+
+## License
+
+Do whatever you like with it.
