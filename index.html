@@ -1,149 +1,121 @@
-# Gomoku — Five in a Row
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Gomoku — Five in a Row</title>
+  <meta name="description" content="A quiet 15×15 Gomoku duel. Play a friend online over a shareable link, or pass the device back and forth." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand" id="brand">
+        <h1>Gomoku</h1>
+        <span class="sub">Five in a Row</span>
+      </div>
+      <div class="topbar-right">
+        <div class="stat-chip" id="lifetime">
+          <span><b class="w" id="lt-w">0</b> won</span>
+          <span><b class="l" id="lt-l">0</b> lost</span>
+          <span><b id="lt-d">0</b> drawn</span>
+        </div>
+        <button class="icon-btn" id="sound-btn" title="Toggle sound">🔊</button>
+      </div>
+    </div>
 
-A 15×15 Gomoku game you can play with one friend over a shareable link, with
-live spectators, synthesized sound, and a persistent win/loss record. No
-backend, no database, no API keys — the realtime layer is **WebRTC peer-to-peer**
-via [PeerJS](https://peerjs.com/).
+    <!-- ============ LOBBY ============ -->
+    <div class="lobby" id="lobby">
+      <div class="hero">Place a stone.<br><em>Make five.</em></div>
+      <p class="lede">A quiet duel on a 15×15 board. Play a friend online, or pass the device back and forth.</p>
 
-> Black always opens; first to get five stones in a row (horizontal, vertical,
-> or diagonal) wins. This is freestyle Gomoku — no opening restrictions and
-> overlines (six or more) also count.
+      <div class="card">
+        <h3>Play online</h3>
+        <p>Create a room, then send the invite link to one friend. Anyone else who opens it can watch.</p>
+        <button class="btn btn-primary" id="create-btn">Create a room</button>
+      </div>
 
----
+      <div class="card">
+        <h3>Join with a code</h3>
+        <p>Got a 5-letter room code from a friend? Drop it in.</p>
+        <div class="join-row">
+          <input id="join-input" maxlength="5" placeholder="A B C D E" autocomplete="off" spellcheck="false" />
+          <button class="btn btn-primary" id="join-btn">Join</button>
+        </div>
+      </div>
 
-## How online play works
+      <div class="card">
+        <h3>Pass &amp; play</h3>
+        <p>Two players, one screen — take turns on this device.</p>
+        <button class="btn btn-ghost" id="local-btn">Start a local game</button>
+      </div>
 
-There is no server of your own holding game state. The flow is:
+      <div class="err" id="lobby-err"></div>
+    </div>
 
-1. **You create a room.** Your browser registers a peer id on PeerJS's free
-   public broker (`gmk5r-<CODE>`). That broker exists only to introduce
-   browsers to each other.
-2. **You share the link** (`…/?room=CODE`). The page auto-fills and joins from
-   that `room` query param.
-3. **Your friend opens it.** Their browser opens a direct WebRTC data channel
-   to yours. From here on, moves travel browser-to-browser — the broker is no
-   longer in the loop.
-4. **Roles are assigned by the host.** The creator plays **Black** and is the
-   authority for game state. The first joiner who wants to play takes **White**.
-   Anyone who opens the link after that becomes a **spectator** and watches the
-   game update live.
+    <!-- ============ GAME ============ -->
+    <div class="game hidden" id="game">
+      <div class="boardbox" id="boardbox">
+        <svg class="board" id="board" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
 
-The host validates every move and broadcasts the full board to all connected
-peers, so spectators and the white player always see a consistent game.
+      <div class="side">
+        <div class="panel turn-card" id="turn-card">
+          <div class="turn-stone black" id="turn-stone"></div>
+          <div class="turn-text">
+            <div class="label" id="turn-label">Turn</div>
+            <div class="who" id="turn-who">Black</div>
+          </div>
+        </div>
 
-### Important limitation
+        <div class="status-msg" id="status-msg"></div>
 
-Because there's no server, **the host's tab must stay open** for the room to
-exist. If the creator closes the tab, the room is gone and players/spectators
-disconnect. This is the trade-off for a zero-backend, zero-key design. See
-*Going more robust* below if you want rooms to survive a host leaving.
+        <div class="panel">
+          <div class="score-row">
+            <div class="score-cell">
+              <div class="nm"><span class="dot black"></span>Black</div>
+              <div class="vl" id="score-black">0</div>
+            </div>
+            <div class="score-cell">
+              <div class="nm"><span class="dot white"></span>White</div>
+              <div class="vl" id="score-white">0</div>
+            </div>
+          </div>
+        </div>
 
----
+        <div class="panel" id="room-panel">
+          <div class="room-line">
+            <span class="room-code" id="room-code">—</span>
+            <span class="role-badge you" id="role-badge">You</span>
+          </div>
+          <div class="room-line">
+            <span class="hint">Invite a friend to play</span>
+            <span style="display:flex; gap:8px;">
+              <button class="btn btn-ghost copy-btn" id="copy-code">Code</button>
+              <button class="btn btn-primary copy-btn" id="copy-link">Copy link</button>
+            </span>
+          </div>
+        </div>
 
-## Project structure
+        <div class="actions">
+          <button class="btn btn-primary hidden" id="rematch-btn">Rematch</button>
+          <button class="btn btn-ghost" id="leave-btn">Leave</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-```
-gomoku/
-├── index.html          # markup + script/style includes
-├── assets/
-│   └── styles.css       # all styling (goban + cinnabar theme)
-├── src/
-│   ├── sound.js         # Web Audio effects, fully synthesized (no files)
-│   ├── engine.js        # pure rules: board, win detection, state transitions
-│   ├── net.js           # PeerJS layer: rooms, host authority, broadcast
-│   └── ui.js            # rendering, input, sound diffing, scores, screen flow
-├── vercel.json          # static config (optional)
-├── .gitignore
-└── README.md
-```
+  <div class="toast" id="toast"></div>
 
-The four scripts load in order and communicate through small global namespaces
-(`GSound`, `GEngine`, `GNet`) plus an event API (`GNet.on(...)`). No build step,
-no bundler, no dependencies to install — PeerJS is loaded from a CDN.
-
----
-
-## Run locally
-
-Because the scripts are loaded as plain `<script>` tags (not ES modules), you
-can open `index.html` directly. But for clipboard, audio, and WebRTC to behave
-consistently, serve it over `http://localhost`:
-
-```bash
-# any static server works — pick one
-npx serve .
-# or
-python3 -m http.server 8000
-```
-
-Then visit `http://localhost:8000` (or whatever port your server prints).
-
-To test multiplayer on one machine, open the room link in **two different
-browser windows** (or one normal + one incognito) so each gets its own peer id.
-
----
-
-## Deploy to Vercel
-
-This is a static site, so deployment is trivial.
-
-**From the dashboard**
-1. Push this folder to a GitHub repo.
-2. In Vercel, *Add New → Project* and import the repo.
-3. Framework preset: **Other** (no build command, output is the repo root).
-4. Deploy. Your link is live.
-
-**From the CLI**
-```bash
-npm i -g vercel
-vercel        # preview deploy
-vercel --prod # production deploy
-```
-
-The included `vercel.json` enables clean URLs and a light cache header on
-`/assets`. It's optional — delete it and the site still deploys fine.
-
-No environment variables are needed.
-
----
-
-## Controls & features
-
-- **Create a room** → get a code + invite link; share the link with a friend.
-- **Join with a code** → enter a 5-character code, or just open a `?room=` link.
-- **Pass & play** → two people share one device (does not affect your record).
-- **Copy link / Code** → invite buttons inside a room.
-- **Rematch** → both players must agree; the running score carries over.
-- **🔊** → mute/unmute. Sound is generated live (a woody *clack* per stone, a
-  chime on a win), so there are no audio assets to host.
-- **Win / loss / draw record** → stored in `localStorage` under `gomoku.stats`,
-  so it survives reloads on the same browser.
-
----
-
-## Going more robust (optional upgrades)
-
-The public PeerJS broker is convenient but occasionally flaky and rate-limited.
-If you want production-grade reliability, two paths:
-
-1. **Self-host the PeerJS signaling server** (still peer-to-peer for game data):
-   ```bash
-   npm i -g peer
-   peerjs --port 9000 --key peerjs --path /
-   ```
-   Then point the clients at it by passing options to `new Peer(...)` in
-   `src/net.js`:
-   ```js
-   new Peer(PREFIX + code, { host: "your-host", port: 9000, path: "/", secure: true });
-   ```
-
-2. **Move to a hosted realtime backend** (e.g. Supabase Realtime channels) if
-   you'd rather rooms survive the host leaving and not depend on a public broker
-   at all. That swaps `src/net.js` for a channel-based layer; the engine, UI,
-   and sound stay exactly as they are.
-
----
-
-## License
-
-Do whatever you like with it.
+  <!-- PeerJS provides the free public signaling broker; the game data flows
+       peer-to-peer once two browsers are introduced. -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="src/sound.js"></script>
+  <script src="src/engine.js"></script>
+  <script src="src/net.js"></script>
+  <script src="src/ui.js"></script>
+</body>
+</html>
