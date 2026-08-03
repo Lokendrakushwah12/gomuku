@@ -17,6 +17,22 @@ window.GNet = (function () {
   const PREFIX = "gmk5r-"; // namespaced so our peer ids don't collide on the shared broker
   const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
 
+  // ICE config: default PeerJS only ships STUN, so when the direct P2P path
+  // fails (mDNS blocked, symmetric/hairpin NAT) the data channel never opens.
+  // A TURN relay is the fallback that makes those connections still work.
+  // ponytail: free openrelay creds; swap for your own TURN if it goes down.
+  const PEER_OPTS = {
+    debug: 1,
+    config: {
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+        { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+        { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+      ],
+    },
+  };
+
   let peer = null;
   let isHost = false;
   let role = null;            // 'black' | 'white' | 'spectator'
@@ -59,7 +75,7 @@ window.GNet = (function () {
 
   function openHost(onReady, attempt) {
     if (attempt > 5) { emit("error", "Couldn't open a room. Please retry."); return; }
-    peer = new Peer(PREFIX + code, { debug: 1 });
+    peer = new Peer(PREFIX + code, PEER_OPTS);
 
     peer.on("open", function () {
       state = GEngine.emptyState();
@@ -148,7 +164,7 @@ window.GNet = (function () {
     isHost = false; code = (roomCode || "").toUpperCase().trim();
     if (code.length !== 5) { emit("error", "A room code is 5 characters."); return; }
 
-    peer = new Peer({ debug: 1 });
+    peer = new Peer(PEER_OPTS);
 
     peer.on("open", function () {
       const conn = peer.connect(PREFIX + code, { reliable: true });
